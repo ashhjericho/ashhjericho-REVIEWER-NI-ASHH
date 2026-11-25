@@ -1,0 +1,14 @@
+const {chromium}=require('playwright');
+(async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',args:['--no-sandbox']});
+ const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const m={id:'module-1',title:'Module 1',position:1,completed:0,content:'CPU executes instructions.',warning:''};
+ const q={id:'q1',moduleId:m.id,moduleTitle:m.title,topic:'Hardware',difficulty:'Easy',questionText:'What executes instructions?',options:['CPU','RAM','Disk','Monitor'],correctIndex:0,explanation:'The CPU executes instructions.',sourceReference:'Slide 1'};
+ await page.route('**/api/**',async route=>{let name=new URL(route.request().url()).pathname.split('/').pop(), data=name==='state'?{modules:[m],attempts:[],questionCount:0,aiConfigured:true,searchConfigured:false}:name==='quiz'?{questions:[q]}:name==='reviewer'?{sections:[{title:'Overview',content:'The CPU executes instructions.'}]}:name==='upload'?{status:'imported'}:{ok:true};await route.fulfill({json:data})});
+ await page.goto('http://127.0.0.1:8765/upload');await page.locator('#files').setInputFiles({name:'lesson.pdf',mimeType:'application/pdf',buffer:Buffer.from('test')});await page.getByRole('button',{name:'UPLOAD LESSONS'}).click();await page.getByText('Your lessons are ready!',{exact:false}).waitFor();
+ await page.goto('http://127.0.0.1:8765');await page.getByRole('link',{name:'START QUIZ'}).click();await page.getByRole('button',{name:'START THE CLIMB'}).click();await page.getByRole('button',{name:'B. RAM'}).click();await page.getByText('Not quite!',{exact:false}).waitFor();await page.getByRole('button',{name:'SEE RESULTS'}).click();await page.getByRole('button',{name:'REVIEW MY ANSWERS'}).click();await page.getByText('Your answer: RAM').waitFor();
+ await page.goto('http://127.0.0.1:8765/quiz/setup');await page.getByRole('button',{name:'START THE CLIMB'}).click();await page.getByRole('button',{name:'A. CPU'}).waitFor();await page.reload();await page.getByRole('button',{name:'A. CPU'}).click();await page.getByText('Correct! Great job',{exact:false}).waitFor();
+ await page.goto('http://127.0.0.1:8765/reviewer');await page.getByRole('button',{name:'GENERATE REVIEWER'}).click();await page.getByText('The CPU executes instructions.',{exact:true}).waitFor();
+ let sizes=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));if(sizes.scroll>sizes.width)throw Error('Horizontal overflow: '+JSON.stringify(sizes));if(errors.length)throw Error(errors.join('; '));console.log('Mobile quiz, feedback, result, reviewer and width checks passed:',sizes);await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});
